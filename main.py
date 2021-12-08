@@ -102,7 +102,7 @@ def construct_and_train(args: dict):
         start_epoch = checkpoint['epoch']
 
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(net.parameters(), lr=args.lr,
+    optimizer = optim.SGD(net.parameters(), lr=args['lr'],
                       momentum=0.9, weight_decay=5e-4)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args['epochs'])
 

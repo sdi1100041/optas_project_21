@@ -1,7 +1,9 @@
 import torch
+import numpy as np
 from torchvision import datasets, transforms
 
 CIFAR_TRAIN_DATASET_SIZE=50000
+SUBSET_SIZE=25000
 
 class CIFAR10Transform:
     def train_transform():
@@ -18,15 +20,15 @@ class CIFAR10Transform:
 
 def get_train_data():
     dataset= datasets.CIFAR10(root='../data', train=True, download=True, transform=CIFAR10Transform.train_transform())
-    dataset1=torch.utils.data.Subset(dataset,range(CIFAR_TRAIN_DATASET_SIZE/2))
-    dataset2=torch.utils.data.Subset(dataset,range(CIFAR_TRAIN_DATASET_SIZE/2,CIFAR_TRAIN_DATASET_SIZE))
+    dataset1=torch.utils.data.Subset(dataset,range(SUBSET_SIZE))
+    dataset2=torch.utils.data.Subset(dataset,range(SUBSET_SIZE,CIFAR_TRAIN_DATASET_SIZE))
 
     dataset.targets = np.array(dataset.targets)
     print("Splitting training dataset into 2 subsets")
-    a=dataset.targets[np.array(range(CIFAR_TRAIN_DATASET_SIZE/2))]
+    a=dataset.targets[np.array(range(SUBSET_SIZE))]
     unique, counts = np.unique(a, return_counts=True)
     print("The first  one has target counts ", counts)
-    b=dataset.targets[np.array(range(CIFAR_TRAIN_DATASET_SIZE/2,CIFAR_TRAIN_DATASET_SIZE))]
+    b=dataset.targets[np.array(range(SUBSET_SIZE,CIFAR_TRAIN_DATASET_SIZE))]
     unique, counts = np.unique(b, return_counts=True)
     print("The second one has target counts ", counts)
 
