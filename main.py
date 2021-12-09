@@ -121,8 +121,10 @@ def construct_and_train(args: dict):
 
 def construct_and_test():
     trainset1,trainset2 = get_train_data()
+    testset = get_validation_data()
     testloader1 = torch.utils.data.DataLoader(trainset1,batch_size=100, shuffle= False,num_workers=1)
     testloader2 = torch.utils.data.DataLoader(trainset2,batch_size=100, shuffle= False,num_workers=1)
+    testloader = torch.utils.data.DataLoader(testset,batch_size=100, shuffle= False,num_workers=1)
 
     net = define_model(True)
 
@@ -132,6 +134,8 @@ def construct_and_test():
     test(0,net,testloader1,criterion)
     print("Performance of saved model on Subset 2 is:")
     test(1,net,testloader2,criterion)
+    print("Performance of saved model on Test set is:")
+    test(2,net,testloader,criterion)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="PyTorch experiments")
