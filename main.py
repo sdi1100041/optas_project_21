@@ -155,7 +155,8 @@ def construct_and_train_second_classifier():
             trainset.targets[indices]=predicted.cpu().detach().numpy()
     print("For verification in trainset2 percentage of common labels compared to previously is")
     print(np.sum(previous_labels == trainset.targets[range(25000,50000)])/25000 )
-    trainset.targets[range(25000)] = (trainset.targets[range(25000)] + 1) % 10
+    randomClass = 1+np.random.randint(9, size=25000)
+    trainset.targets[range(25000)] = (trainset.targets[range(25000)] + randomClass) % 10
 
     testset = get_validation_data()
     testloader = torch.utils.data.DataLoader(testset,batch_size=100, shuffle= False,num_workers=1)
