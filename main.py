@@ -6,6 +6,7 @@ import torch.nn.functional as F
 import torch.backends.cudnn as cudnn
 import os
 import wandb
+import numpy as np
 from utils.data_processing.get_dataset import get_train_data, get_validation_data
 from utils.models import *
 from utils.utilities.utils import progress_bar
@@ -140,6 +141,7 @@ def construct_and_test():
 
 def construct_and_train_second_classifier():
     global start_epoch, best_acc
+    start_epoch, best_acc = 0, 101
     construct_and_test()
     trainset1,trainset2 = get_train_data()
     trainset= trainset1.dataset
@@ -166,7 +168,6 @@ def construct_and_train_second_classifier():
     optimizer = optim.SGD(net.parameters(), lr=args['lr'],
                       momentum=0.9, weight_decay=5e-4)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args['epochs'])
-    start_epoch, best_acc = 0, 0
 
     for epoch in range(args['epochs']):
         train(epoch,net,trainloader,criterion,optimizer)
