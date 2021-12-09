@@ -14,6 +14,29 @@ device = 'cuda' if torch.cuda.is_available() else 'cpu'
 best_acc = 0  # best test accuracy
 start_epoch = 0  # start from epoch 0 or last checkpoint epoch
 
+def define_model(resume: bool):
+    global start_epoch, best_acc
+    net = ResNet18()
+    net = net.to(device)
+    if device == 'cuda':
+        net = torch.nn.DataParallel(net)
+        cudnn.benchmark = True
+    wandb.init(project='optas_project_21', name='CIFAR10_RESNET18_2SUBSETS', config=args)
+    wandb.watch(net)
+
+    if resume:
+        # Load checkpoint.
+        print('==> Resuming from checkpoint..')
+        assert os.path.isdir('checkpoint'), 'Error: no checkpoint directory found!'
+        checkpoint = torch.load('./checkpoint/ckpt.pth')
+        net.load_state_dict(checkpoint['net'])
+        best_acc = checkpoint['acc']
+        start_epoch = checkpoint['epoch']
+
+    return net
+
+
+
 def train(epoch,net,trainloader,criterion,optimizer):
     print('\nEpoch: %d' % epoch)
     net.train()
@@ -84,22 +107,7 @@ def construct_and_train(args: dict):
     trainloader = torch.utils.data.DataLoader(trainset1,batch_size=128, shuffle= True,num_workers=2)
     testloader = torch.utils.data.DataLoader(testset,batch_size=100, shuffle= False,num_workers=1)
 
-    net = ResNet18()
-    net = net.to(device)
-    if device == 'cuda':
-        net = torch.nn.DataParallel(net)
-        cudnn.benchmark = True
-    wandb.init(project='optas_project_21', name='CIFAR10_RESNET18_2SUBSETS', config=args)
-    wandb.watch(net)
-
-    if args['resume']:
-        # Load checkpoint.
-        print('==> Resuming from checkpoint..')
-        assert os.path.isdir('checkpoint'), 'Error: no checkpoint directory found!'
-        checkpoint = torch.load('./checkpoint/ckpt.pth')
-        net.load_state_dict(checkpoint['net'])
-        best_acc = checkpoint['acc']
-        start_epoch = checkpoint['epoch']
+    net = define_model(args['resume'])
 
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(net.parameters(), lr=args['lr'],
@@ -111,11 +119,28 @@ def construct_and_train(args: dict):
         test(epoch,net,testloader,criterion)
         scheduler.step()
 
+def construct_and_test():
+    trainset1,trainset2 = get_train_data()
+    testloader1 = torch.utils.data.DataLoader(trainset1,batch_size=100, shuffle= False,num_workers=1)
+    testloader2 = torch.utils.data.DataLoader(trainset2,batch_size=100, shuffle= False,num_workers=1)
+
+    net = define_model(True)
+
+    criterion = nn.CrossEntropyLoss()
+
+    print("Performance of saved model on Subset 1 is:")
+    test(0,net,testloader1,criterion)
+    print("Performance of saved model on Subset 2 is:")
+    test(1,net,testloader2,criterion)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="PyTorch experiments")
     parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
     parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
     parser.add_argument("--epochs",default=200,type=int, choices=range(0,401), help="number of epochs")
+    parser.add_argument("--test", action='store_true', help='run construct and test method')
     args = vars(parser.parse_args())
-    construct_and_train(args)
+    if args['test']:
+        construct_and_test()
+    else:
+        construct_and_train(args)
