@@ -15,6 +15,7 @@ best_acc = 0  # best test accuracy
 start_epoch = 0  # start from epoch 0 or last checkpoint epoch
 
 def define_model(resume: bool):
+    torch.manual_seed(1274)
     global start_epoch, best_acc
     net = ResNet18()
     net = net.to(device)
@@ -43,7 +44,7 @@ def train(epoch,net,trainloader,criterion,optimizer):
     train_loss = 0
     correct = 0
     total = 0
-    for batch_idx, (inputs, targets) in enumerate(trainloader):
+    for batch_idx, (inputs, targets, _) in enumerate(trainloader):
         inputs, targets = inputs.to(device), targets.to(device)
         optimizer.zero_grad()
         outputs = net(inputs)
@@ -69,7 +70,7 @@ def test(epoch,net,testloader,criterion):
     correct = 0
     total = 0
     with torch.no_grad():
-        for batch_idx, (inputs, targets) in enumerate(testloader):
+        for batch_idx, (inputs, targets, _) in enumerate(testloader):
             inputs, targets = inputs.to(device), targets.to(device)
             outputs = net(inputs)
             loss = criterion(outputs, targets)
@@ -137,14 +138,52 @@ def construct_and_test():
     print("Performance of saved model on Test set is:")
     test(2,net,testloader,criterion)
 
+def construct_and_train_second_classifier():
+    global start_epoch, best_acc
+    construct_and_test()
+    trainset1,trainset2 = get_train_data()
+    trainset= trainset1.dataset
+    net = define_model(True)
+    previous_labels=trainset.targets[range(25000,50000)]
+    with torch.no_grad():
+        for batch_idx, (inputs, _, indices) in enumerate(torch.utils.data.DataLoader(trainset2,batch_size=100, shuffle= False, num_workers=1)):
+            inputs = inputs.to(device)
+            outputs = net(inputs)
+            _, predicted = outputs.max(1)
+            trainset.targets[indices]=predicted.cpu().detach().numpy()
+    print("For verification in trainset2 percentage of common labels compared to previously is")
+    print(np.sum(previous_labels == trainset.targets[range(25000,50000)])/25000 )
+    trainset.targets[range(25000)] = (trainset.targets[range(25000)] + 1) % 10
+
+    testset = get_validation_data()
+    testloader = torch.utils.data.DataLoader(testset,batch_size=100, shuffle= False,num_workers=1)
+    trainloader = torch.utils.data.DataLoader(trainset,batch_size=128, shuffle= True,num_workers=2)
+
+
+    net = define_model(False)
+
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.SGD(net.parameters(), lr=args['lr'],
+                      momentum=0.9, weight_decay=5e-4)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args['epochs'])
+    start_epoch, best_acc = 0, 0
+
+    for epoch in range(args['epochs']):
+        train(epoch,net,trainloader,criterion,optimizer)
+        test(epoch,net,testloader,criterion)
+        scheduler.step()
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="PyTorch experiments")
     parser.add_argument('--lr', default=0.1, type=float, help='learning rate')
     parser.add_argument('--resume', '-r', action='store_true', help='resume from checkpoint')
     parser.add_argument("--epochs",default=200,type=int, choices=range(0,401), help="number of epochs")
-    parser.add_argument("--test", action='store_true', help='run construct and test method')
+    parser.add_argument("--mode", type=str, default="TrainFirst", choices={"TrainFirst","TrainSecond","TestFirst"}, help=' switch mode')
     args = vars(parser.parse_args())
-    if args['test']:
-        construct_and_test()
-    else:
+    if args['mode'] == "TrainFirst":
         construct_and_train(args)
+    elif args['mode'] == "TrainSecond":
+        construct_and_train_second_classifier()
+    else:
+        construct_and_test()
